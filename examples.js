@@ -1,0 +1,1 @@
+new (require(__dirname + '/server.class.js'))();

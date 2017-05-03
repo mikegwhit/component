@@ -1,5 +1,10 @@
 {
-    "name": "component",
-    "scripts": {
-    }
+  "name": "component",
+  "scripts": {
+    "examples": "node examples.js"
+  },
+  "devDependencies": {
+    "express": "^4.15.2",
+    "jasmine": "^2.6.0"
+  }
 }

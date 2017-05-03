@@ -1,5 +1,5 @@
-if (typeof module != 'undefined' && module.exports) {
-    var HTMLParser = 
+if (typeof module != 'undefined' && module.exports && typeof HTMLParser == 'undefined') {
+    HTMLParser = 
         require('bower_components/HTMLParser/htmlparser.class.js');
 } else if (typeof HTMLParser == 'undefined') {
     console.error('HTMLParser is undefined while trying to load Component');
@@ -155,8 +155,15 @@ class Component {
      * Initializes the component by associating a component name with a file.
      * @param {String} name The name of the component.
      * @param {String} src The source file.
+     * @param {String} classname (Optional) The class to initialize for this 
+     * component name.  If no classname defined, initializes as a Component.
+     * @todo If classname is not defined as a Class object, then store as a 
+     * string.  During runtime, if wrap initialization in try/catch and if 
+     * catch, then initialize classname string as Component instead.
+     * @return {Promise} A promise that resolves when the component source file
+     * is retrieved.
      */
-    static initialize(name, src = '') {
+    static initialize(name, src = '', classname = 'Component') {
         if (Component.components[name]) {
             // The component is already defined...
             return new Promise((resolve, reject) => {
@@ -175,7 +182,10 @@ class Component {
                 });
             }));
             Component.promises[name].then((contents) => {
-                Component.components[name] = contents;
+                Component.components[name] = {
+                    contents: contents,
+                    classname: classname
+                }
             });
         } else {
             // Display error message...
