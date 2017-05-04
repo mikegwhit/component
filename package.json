@@ -5,6 +5,7 @@
   },
   "devDependencies": {
     "express": "^4.15.2",
-    "jasmine": "^2.6.0"
+    "jasmine": "^2.6.0",
+    "jsdom": "^10.1.0"
   }
 }
