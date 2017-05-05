@@ -1,16 +1,35 @@
 const {jsdom} = require('jsdom');
+const Component = require(__dirname + '/../component.js');
 
 describe('Component', () => {
     beforeEach(() => {
 
     });
 
-    it('Should load component contents from a file.', () => {
-        Component.initialize()
+    it('Should load component contents from a file.', (done) => {
+        Component.initialize('testComponent', 'spec/testComponent.html')
+            .then((contents) => {
+                expect(contents.length).toBeGreaterThan(0);
+                expect(!!Component.components['testComponent']).toBe(true);
+                expect(Component.components['testComponent'].classname)
+                    .toBe('Component');
+                done();
+            });
     });
 
     it('Should only load component contents once, unless explicitly ' + 
-        'requested.', () => {
+        'requested.', (done) => {
+            spyOn($, 'ajax').and.callThrough();
+            expect($.ajax.calls.count()).toBe(0);
+            Component.initialize('testComponent', 'spec/testComponent.html')
+                .then((contents) => {
+                    expect($.ajax.calls.count()).toBe(1);
+                    Component.initialize('testComponent', 
+                        'spec/testComponent.html').then((contents) => {
+                            expect($.ajax.calls.count()).toBe(1);
+                            done();
+                        });
+                });
 
         });
 
@@ -54,6 +73,8 @@ describe('Component', () => {
         });
 
     afterEach(() => {
-
+        Component.components = {};
+        Component.numInstances = 0;
+        Component.promises = {};
     });
 });

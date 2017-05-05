@@ -1,6 +1,19 @@
 if (typeof module != 'undefined' && module.exports && typeof HTMLParser == 'undefined') {
     HTMLParser = 
-        require('bower_components/HTMLParser/htmlparser.class.js');
+        require(__dirname + '/bower_components/HTMLParser/htmlparser.class.js');
+    // jQuery Mock...
+    $ = {
+        'ajax': (ajaxObj) => {
+            ajaxObj = Object.assign({}, {
+                'url': '',
+                'success': () => {}
+            }, ajaxObj);
+            try {
+                ajaxObj.success(require('fs')
+                    .readFileSync(ajaxObj.url, 'UTF8'));
+            } catch(e) {}
+        }
+    };
 } else if (typeof HTMLParser == 'undefined') {
     console.error('HTMLParser is undefined while trying to load Component');
 }
