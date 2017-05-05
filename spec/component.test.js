@@ -6,7 +6,7 @@ describe('Component', () => {
     });
 
     it('Should load component contents from a file.', () => {
-        
+        Component.initialize()
     });
 
     it('Should only load component contents once, unless explicitly ' + 
