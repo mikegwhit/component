@@ -1,23 +1,3 @@
-if (typeof module != 'undefined' && module.exports && typeof HTMLParser == 'undefined') {
-    HTMLParser = 
-        require(__dirname + '/bower_components/HTMLParser/htmlparser.class.js');
-    // jQuery Mock...
-    $ = {
-        'ajax': (ajaxObj) => {
-            ajaxObj = Object.assign({}, {
-                'url': '',
-                'success': () => {}
-            }, ajaxObj);
-            try {
-                ajaxObj.success(require('fs')
-                    .readFileSync(ajaxObj.url, 'UTF8'));
-            } catch(e) {}
-        }
-    };
-} else if (typeof HTMLParser == 'undefined') {
-    console.error('HTMLParser is undefined while trying to load Component');
-}
-
 /**
  * Renders a model onto a template literal string.  Renders the rendered text.
  * @param {Object} model An object to render into the templateLiteral.
@@ -55,29 +35,29 @@ function renderScripts(element) {
  */
 class Component {
     /**
-     * @param {String} name The name of the component.
      * @param {String|HTMLElement} selector The selector to insert the 
      * component into.
+     * @param {String} name The name of the component.
      * @param {String} src The filename to obtain the component source from.
      */
-    constructor(name, selector, src = '') {
-        if (typeof selector == 'string' &&
-            document.querySelectorAll(selector).length > 1) {
-            document.querySelectorAll(selector).forEach((el) => {
-                new Component(name, el, src);
+    constructor(element, name, src = '') {
+        if (typeof element == 'string' &&
+            document.querySelectorAll(element).length > 1) {
+            document.querySelectorAll(element).forEach((el) => {
+                new Component(el, name, src);
             });
             return;
-        } else if (selector == 'string') {
-            selector = document.querySelector(selector);
+        } else if (element == 'string') {
+            element = document.querySelector(element);
         }
 
-        if (!selector) {
+        if (!element) {
             console.error('Component inserted without a valid parent.');
             return null;
         }
         
         /** {HTMLElement} The parent node for this component. */
-        this.parent = selector;
+        this.parent = element;
         
         // Calls the static initialize function.
         Component.initialize(name, src).then(this.render.bind(this));
@@ -96,6 +76,16 @@ class Component {
         
         /** {String} The name of the component. */
         this.name = name;
+
+        this.id = ++Component.createdComponents;
+        if (!Component.instances[this.name]) {
+            Component.instances[this.name] = [];
+        }
+        Component.instances[this.name].push(this) - 1;
+        if (!Component.createdInstances[this.name]) {
+            Component.createdInstances[this.name] = 0;
+        }
+        this.instanceId = ++Component.createdInstances[this.name];
     }
 
     /**
@@ -117,6 +107,95 @@ class Component {
         } catch(e) {
             return [];
         }
+    }
+    /**
+     * The default initialization function.  The component is constructed with
+     * the new DOM node.
+     */
+    initialize() {
+        this.initialized = true;
+    }
+
+    /**
+     * Initializes the component by associating a component name with a file.
+     * @param {String} name The name of the component.
+     * @param {String} src The source file.
+     * @param {String} classname (Optional) The class to initialize for this 
+     * component name.  If no classname defined, initializes as a Component.
+     * @todo If classname is not defined as a Class object, then store as a 
+     * string.  During runtime, if wrap initialization in try/catch and if 
+     * catch, then initialize classname string as Component instead.
+     * @return {Promise} A promise that resolves when the component source file
+     * is retrieved.
+     */
+    static initialize(name, src = '', classname = 'Component') {
+        if (Component.components[name]) {
+            // The component is already defined...
+            return new Promise((resolve, reject) => {
+                resolve(Component.components[name]);
+            });
+        }
+        if (src.length > 0) {
+            // Load the src file...
+            Component.promises[name] = (new Promise((resolve, reject) => {
+                // TODO: use native XHRequest or axios
+                new Promise((res, rej) => {
+                    $.ajax({
+                        url: src,
+                        success: function(s) {
+                            res(s);
+                        }
+                    });
+                }).then((contents) => {
+                    Component.components[name] = {
+                        contents: contents,
+                        classname: classname
+                    };
+                    resolve(Component.components[name]);
+                });
+            }));
+        } else {
+            // Display error message...
+            console.warn('Component missing source file:', name);
+        }
+        return Component.promises[name];
+    }
+
+    /**
+     * Instances a component given an element.  This is similar to calling the 
+     * constructor of the named components classname given the provided element.
+     * @param {String|HTMLElement} selector The selector to insert the 
+     * component into.
+     * @param {String} name The name of the component.
+     * @returns {Promise} A promise that resolves when the component is 
+     * initialized.  The promise resolves with the component instance.
+     */
+    static instance(element, name, ...args) {
+        let instance;
+        if (!Component.components[name]) {
+            console.warn('Component not found: ', name);
+            return;
+        }
+
+        if (typeof Component.components[name].classname == 'string') {
+            if (Component.components[name].classname == 'Component') {
+                args.unshift(name); // Component needs a name parameter...
+            }
+            instance = new (eval(Component.components[name].classname))
+                (element, ...args);
+        } else {
+            if (Component.components[name].classname == Component) {
+                args.unshift(name); // Component needs a name parameter...
+            }
+            instance = new (Component.components[name].classname)
+                (element, ...args);
+        }
+
+        return new Promise((resolve, reject) => {
+            instance.initialized.then(() => {
+                resolve(instance);
+            });
+        });
     }
 
     /**
@@ -157,56 +236,6 @@ class Component {
     }
 
     /**
-     * The default initialization function.  The component is constructed with
-     * the new DOM node.
-     */
-    initialize() {
-        this.initialized = true;
-    }
-
-    /**
-     * Initializes the component by associating a component name with a file.
-     * @param {String} name The name of the component.
-     * @param {String} src The source file.
-     * @param {String} classname (Optional) The class to initialize for this 
-     * component name.  If no classname defined, initializes as a Component.
-     * @todo If classname is not defined as a Class object, then store as a 
-     * string.  During runtime, if wrap initialization in try/catch and if 
-     * catch, then initialize classname string as Component instead.
-     * @return {Promise} A promise that resolves when the component source file
-     * is retrieved.
-     */
-    static initialize(name, src = '', classname = 'Component') {
-        if (Component.components[name]) {
-            // The component is already defined...
-            return new Promise((resolve, reject) => {
-                resolve(Component.components[name]);
-            });
-        }
-        if (src.length > 0) {
-            // Load the src file...
-            Component.promises[name] = (new Promise((resolve, reject) => {
-                // TODO: use native XHRequest
-                $.ajax({
-                    url: src,
-                    success: function(s) {
-                        resolve(s);
-                    }
-                });
-            }));
-            Component.promises[name].then((contents) => {
-                Component.components[name] = {
-                    contents: contents,
-                    classname: classname
-                }
-            });
-        } else {
-            // Display error message...
-        }
-        return Component.promises[name];
-    }
-
-    /**
      * Replaces the contents, wrapping template literals in a "safe" execution
      * environment, i.e. an eval'd try/catch block that outputs an empty string
      * by default.  This allows a template to safely display nothing when no
@@ -226,7 +255,7 @@ class Component {
         itr = 0;
         str1 = '${eval(\'try {';
         str2 = '} catch(e){__null__}\')}';
-        contents.replace(/\$\{(.*)\}/g, function(match, p1, offset) {
+        contents = contents.replace(/\$\{(.*)\}/g, function(match, p1, offset) {
             invalidated = false;
             for (let label of model) {
                 // Backspace escape $ and _ in label names...
@@ -250,11 +279,16 @@ class Component {
 
     /**
      * Rebuilds the DOM, rendering the DOM contents as a template literal.
-     * @param {String} contents (Optional) The contents to render.
+     * @param {{contents: String}} contents (Optional) The contents to render.
      */
-    render() {
+    render({contents}) {
         let element, invalidated, nextOffset, offset, offsets, path;
 
+        // Always need a good initialization...
+        if (!this.contents) {
+            this.contents = contents;
+        }
+        
         // Store the contents into a local string...
         contents = this.contents;
 
@@ -272,7 +306,10 @@ class Component {
             // Initialize a brand new element...
             this.element = document.createElement(
                     Component.toElementName(this.name));
-            this.element.datasets['instanceId'] = this.id;
+            this.element.setAttribute('data-' + 
+                Component.toElementName('instanceId'), this.instanceId);
+            this.element.setAttribute('data-' + 
+                Component.toElementName('componentId'), this.id);
             // Element receives rendered content....
             this.element.innerHTML = render(this.model, contents);
             this.parent.appendChild(this.element);
@@ -344,7 +381,7 @@ class Component {
      */
     static toElementName(name) {
         return name.replace(/([A-Z]+)/g, '-$1').toLowerCase()
-            .replace(/\s+/g, '-');
+            .replace(/\s+/g, '-').replace(/^-/, '');
     }
 
     /**
@@ -355,10 +392,68 @@ class Component {
     }
 }
 
+/**
+ * Component directory, keyed by name.  Values contain the contents of the 
+ * component, the source filename
+ */
 Component.components = {};
-Component.numInstances = 0;
+
+/**
+ * @type {Number}
+ * The current number of components.  Decrements when a component is removed.
+ */
+Component.numComponents = 0;
+
+/**
+ * @type {Number}
+ * The number of components that are created.  Does not decrements when a 
+ * component is removed.
+ */
+Component.createdComponents = 0;
+
+/**
+ * @type {Object<String, Array>}
+ * An object, keyed by component name, containing arrays of component instances.
+ */
+Component.instances = {};
+
+/**
+ * @type {Object<String, Number>}
+ * The number of components that are created, keyed by name.  Does not 
+ * decrement when a component instance is removed.
+ */
+Component.createdInstances = {};
+
 Component.promises = {};
 
+// Node.js setup...
 if (typeof module != 'undefined' && module.exports) {
     module.exports = Component;
+
+    // HTMLParser dependency...
+    HTMLParser = 
+        require(__dirname + '/bower_components/HTMLParser/htmlparser.class.js');
+
+    // jQuery Mock...
+    $ = {
+        'ajax': (ajaxObj) => {
+            ajaxObj = Object.assign({}, {
+                'url': '',
+                'success': () => {}
+            }, ajaxObj);
+            try {
+                ajaxObj.success(require('fs')
+                    .readFileSync(ajaxObj.url, 'UTF8'));
+            } catch(e) {}
+        }
+    };
+    
+    // No document defined in Node.js context...
+    var document;
+    module.exports.setDocument = function() {
+        document = arguments[0];
+    };
+} else if (typeof HTMLParser == 'undefined') {
+    // Browser context and no HTMLParser... a dependency...
+    console.error('HTMLParser is undefined while trying to load Component');
 }
