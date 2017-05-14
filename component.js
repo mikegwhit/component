@@ -282,7 +282,7 @@ class Component {
      * @param {{contents: String}} contents (Optional) The contents to render.
      */
     render({contents}) {
-        let element, invalidated, nextOffset, offset, offsets, path;
+        let element, invalidated, nextOffset, offset, offsets, parent, path;
 
         // Always need a good initialization...
         if (!this.contents) {
@@ -301,6 +301,12 @@ class Component {
         // Dump contents into dummy element...
         element = document.createElement(Component.toElementName(this.name));
         element.innerHTML = contents;
+        element.setAttribute('data-' + 
+            Component.toElementName('instanceId'), this.instanceId);
+        element.setAttribute('data-' + 
+            Component.toElementName('componentId'), this.id);
+        parent = document.createElement('div');
+        parent.appendChild(element);
         
         if (!this.element) {
             // Initialize a brand new element...
@@ -320,12 +326,16 @@ class Component {
                 path = HTMLParser.rebuildNode(contents, 
                     offset);
                 // TODO: revise to use component ID
-                let queryElement = this.element.querySelector(':scope>' + path);
+                let queryElement = this.parent.querySelector(
+                    `*[data-component-id=${this.id}]>${path}`);
                 if (queryElement) {
                     queryElement.outerHTML = 
                         render(this.model, 
-                            element.querySelector(':scope>' + path).outerHTML);
-                    renderScripts(this.element.querySelector(':scope>' + path));
+                            parent.querySelector(
+                                `*[data-component-id=${this.id}]>${path}`)
+                                .outerHTML);
+                    renderScripts(this.element.querySelector(
+                                `*[data-component-id=${this.id}]>${path}`));
                 }
             }
         }

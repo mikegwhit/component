@@ -41,7 +41,7 @@ class Server {
                 console.warn()
                 reject(e);
             }
-        });n
+        });
     }
 }
 

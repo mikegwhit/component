@@ -23,6 +23,7 @@ describe('Component', () => {
 
     it('Should only load component contents once, unless explicitly ' + 
         'requested.', (done) => {
+            // This test will break if jQuery is swapped for another lib...
             spyOn($, 'ajax').and.callThrough();
             expect($.ajax.calls.count()).toBe(0);
             Component.initialize('testComponent', 'spec/testComponent.html')
@@ -31,6 +32,18 @@ describe('Component', () => {
                     Component.initialize('testComponent', 
                         'spec/testComponent.html').then((prototype) => {
                             expect($.ajax.calls.count()).toBe(1);
+                            done();
+                        });
+                });
+        });
+
+    it('Should allow a component to be instanced.', (done) => {
+            Component.initialize('testComponent', 'spec/testComponent.html')
+                .then((prototype) => {
+                    Component.instance(document.getElementById('container'), 
+                        'testComponent').then((instance) => {
+                            expect(document.querySelectorAll('test-component')
+                                .length).toBe(1);
                             done();
                         });
                 });
@@ -51,6 +64,56 @@ describe('Component', () => {
                             done();
                         });
                 });
+        });
+
+    it('Should properly set the component ID and the instance ID for the ' + 
+        'specific component', (done) => {
+            // This deeply nested test though...
+            var TestComponent = require(__dirname + '/testComponent.js');
+            const getIds = (name, idx = 0) => {
+                const id = document
+                    .querySelectorAll(name)[idx]
+                    .getAttribute('data-component-id');
+                const instanceId = document
+                    .querySelectorAll(name)[idx]
+                    .getAttribute('data-instance-id');
+                return [id, instanceId];
+            };
+            Component.initialize('testComponent', 'spec/testComponent.html',
+                TestComponent)
+                .then((prototype) => {
+                Component.initialize('testComponent2', 
+                    'spec/testComponent.html')
+                    .then((prototype) => {
+                    Component.instance(document.getElementById('container'), 
+                        'testComponent').then(() => {
+                            const [id, instanceId] = getIds('test-component');
+                            expect(id).toBe('1');
+                            expect(instanceId).toBe('1');
+                            Component.instance(document
+                                .getElementById('container'), 
+                                'testComponent2').then(() => {
+                                    const [id, instanceId] = 
+                                        getIds('test-component2');
+                                    expect(id).toBe('2');
+                                    expect(instanceId).toBe('1');
+                                    Component.instance(document
+                                        .getElementById('container'), 
+                                        'testComponent').then(() => {
+                                            const [id, instanceId] = 
+                                                getIds('test-component', 1);
+                                            expect(id).toBe('3');
+                                            expect(instanceId).toBe('2');
+                                            done();
+                                        });
+                                });
+                        });
+                    });
+                });
+        });
+
+    it('Should allow multiple components to be initialized simultaneously ' +
+        'via an array.', () => {
         });
 
     it('Should properly convert component names to element-formatted names',
@@ -78,8 +141,17 @@ describe('Component', () => {
                 });
         });
 
-    it('Should allow a model to be rendered in a template.', () => {
-
+    it('Should allow a model to be rendered in a template.', (done) => {
+        var TestComponent = require(__dirname + '/testComponent.js');
+        const component = new TestComponent(document
+            .getElementById('container'));
+        component.model.foo = 'bar';
+        component.initialized.then(() => {
+            const contents =   
+                document.querySelectorAll('test-component')[0].textContent;
+            expect(contents).toBe('bar');
+            done();
+        });
     });
 
     it('Should allow a component to be rendered with an undefined model or ' + 
@@ -108,8 +180,13 @@ describe('Component', () => {
         });
 
     afterEach(() => {
+        document.getElementById('container').innerHTML = '';
+        Component.promises = {};
         Component.components = {};
-        Component.numInstances = 0;
+        Component.numComponents = 0;
+        Component.createdComponents = 0;
+        Component.instances = {};
+        Component.createdInstances = {};
         Component.promises = {};
     });
 });
