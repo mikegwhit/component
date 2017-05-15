@@ -1,15 +1,24 @@
 <!DOCTYPE HTML>
 <html>
     <head>
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
     </head>
     <body>
-        <div class="component">
+        <div id="container">
 
         </div>
         <script src="../bower_components/HTMLParser/htmlparser.class.js"></script>
         <script src="../component.js"></script>
+        <script src="../spec/testComponent.js"></script>
         <script>
-            Component.initialize('')
+            Component.initialize('book', '/components/book.component.html')
+                .then(() => {
+                    Component.instance(document.getElementById('container'),
+                        'book').then((c) => {
+                            c.model.book = 'Lord of the Rings';
+                            c.render();
+                        });
+                });
         </script>
     </body>
 </html>

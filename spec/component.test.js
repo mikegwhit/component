@@ -147,9 +147,13 @@ describe('Component', () => {
             .getElementById('container'));
         component.model.foo = 'bar';
         component.initialized.then(() => {
-            const contents =   
+            let contents =   
                 document.querySelectorAll('test-component')[0].textContent;
-            expect(contents).toBe('bar');
+            component.model.foo = 'yogurt';
+            component.render();
+            contents =   
+                document.querySelectorAll('test-component')[0].textContent;
+            expect(contents).toBe('yogurt');
             done();
         });
     });

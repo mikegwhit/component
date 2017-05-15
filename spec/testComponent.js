@@ -1,4 +1,6 @@
-var Component = require(__dirname + '/../component.js');
+if (typeof Component == 'undefined' && typeof module != 'undefined') {
+    Component = require(__dirname + '/../component.js');
+}
 
 class TestComponent extends Component {
     constructor(element, ...args) {
@@ -8,4 +10,6 @@ class TestComponent extends Component {
     }
 }
 
-module.exports = TestComponent;
+if (typeof module != 'undefined') {
+    module.exports = TestComponent;
+}

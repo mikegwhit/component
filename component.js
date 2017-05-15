@@ -129,6 +129,16 @@ class Component {
      * is retrieved.
      */
     static initialize(name, src = '', classname = 'Component') {
+        if (typeof name == 'object' && Array.isArray(name)) {
+            for (let component of name) {
+                if (Array.isArray(component)) {
+                    Component.initialize(...component);
+                } else if (typeof component == 'object') {
+                    Component.initialize(component.name, component.src, 
+                        component.classname);
+                }
+            }
+        }
         if (Component.components[name]) {
             // The component is already defined...
             return new Promise((resolve, reject) => {
@@ -281,9 +291,13 @@ class Component {
      * Rebuilds the DOM, rendering the DOM contents as a template literal.
      * @param {{contents: String}} contents (Optional) The contents to render.
      */
-    render({contents}) {
+    render(parameters = {}) {
         let element, invalidated, nextOffset, offset, offsets, parent, path;
 
+        if (parameters.hasOwnProperty('contents')) {
+            var {contents} = parameters;
+        }
+        
         // Always need a good initialization...
         if (!this.contents) {
             this.contents = contents;
@@ -325,17 +339,23 @@ class Component {
                 // Get the offset XPath...
                 path = HTMLParser.rebuildNode(contents, 
                     offset);
+                if (path == '*') {
+                    path = '';
+                } else {
+                    path = '>' + path;
+                }
+
                 // TODO: revise to use component ID
                 let queryElement = this.parent.querySelector(
-                    `*[data-component-id=${this.id}]>${path}`);
+                    `*[data-component-id='${this.id}']${path}`);
                 if (queryElement) {
                     queryElement.outerHTML = 
                         render(this.model, 
                             parent.querySelector(
-                                `*[data-component-id=${this.id}]>${path}`)
+                                `*[data-component-id='${this.id}']${path}`)
                                 .outerHTML);
-                    renderScripts(this.element.querySelector(
-                                `*[data-component-id=${this.id}]>${path}`));
+                    renderScripts(this.parent.querySelector(
+                                `*[data-component-id='${this.id}']${path}`));
                 }
             }
         }
