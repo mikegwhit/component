@@ -1,5 +1,6 @@
 const {JSDOM} = require('jsdom');
-const dom = new JSDOM(require('fs').readFileSync(__dirname + '/testPage.html', 
+const dom = new JSDOM(require('fs').readFileSync(__dirname + 
+    '/component.test.html', 
     'UTF8'));
 const document = dom.window.document;    
 const Component = require(__dirname + '/../component.js');
@@ -11,7 +12,8 @@ describe('Component', () => {
     });
 
     it('Should load component contents from a file.', (done) => {
-        Component.initialize('testComponent', 'spec/testComponent.html')
+        Component.initialize('testComponent', 
+            'spec/components/testComponent.html')
             .then((prototype) => {
                 expect(prototype.contents.length).toBeGreaterThan(0);
                 expect(!!Component.components['testComponent']).toBe(true);
@@ -26,11 +28,12 @@ describe('Component', () => {
             // This test will break if jQuery is swapped for another lib...
             spyOn($, 'ajax').and.callThrough();
             expect($.ajax.calls.count()).toBe(0);
-            Component.initialize('testComponent', 'spec/testComponent.html')
+            Component.initialize('testComponent', 
+                'spec/components/testComponent.html')
                 .then((prototype) => {
                     expect($.ajax.calls.count()).toBe(1);
                     Component.initialize('testComponent', 
-                        'spec/testComponent.html').then((prototype) => {
+                        'spec/components/testComponent.html').then((prototype) => {
                             expect($.ajax.calls.count()).toBe(1);
                             done();
                         });
@@ -38,7 +41,8 @@ describe('Component', () => {
         });
 
     it('Should allow a component to be instanced.', (done) => {
-            Component.initialize('testComponent', 'spec/testComponent.html')
+            Component.initialize('testComponent', 
+                'spec/components/testComponent.html')
                 .then((prototype) => {
                     Component.instance(document.getElementById('container'), 
                         'testComponent').then((instance) => {
@@ -51,8 +55,10 @@ describe('Component', () => {
 
     it('Should allow a Component.instance to perform a instance of a ' + 
         'component using the configured class.', (done) => {
-            var TestComponent = require(__dirname + '/testComponent.js');
-            Component.initialize('testComponent', 'spec/testComponent.html',
+            var TestComponent = require(__dirname + 
+                '/components/testComponent.js');
+            Component.initialize('testComponent', 
+                'spec/components/testComponent.html',
                 TestComponent)
                 .then((prototype) => {
                     Component.instance(document.getElementById('container'), 
@@ -69,7 +75,8 @@ describe('Component', () => {
     it('Should properly set the component ID and the instance ID for the ' + 
         'specific component', (done) => {
             // This deeply nested test though...
-            var TestComponent = require(__dirname + '/testComponent.js');
+            var TestComponent = require(__dirname + 
+                '/components/testComponent.js');
             const getIds = (name, idx = 0) => {
                 const id = document
                     .querySelectorAll(name)[idx]
@@ -79,11 +86,12 @@ describe('Component', () => {
                     .getAttribute('data-instance-id');
                 return [id, instanceId];
             };
-            Component.initialize('testComponent', 'spec/testComponent.html',
+            Component.initialize('testComponent', 
+                'spec/components/testComponent.html',
                 TestComponent)
                 .then((prototype) => {
                 Component.initialize('testComponent2', 
-                    'spec/testComponent.html')
+                    'spec/components/testComponent.html')
                     .then((prototype) => {
                     Component.instance(document.getElementById('container'), 
                         'testComponent').then(() => {
@@ -128,8 +136,10 @@ describe('Component', () => {
 
     it('Should allow an HTML string to properly call Component.load with ' + 
         'parameters.', (done) => {
-            var TestComponent = require(__dirname + '/testComponent.js');
-            Component.initialize('testComponent', 'spec/testComponent.html',
+            var TestComponent = require(__dirname + 
+                '/components/testComponent.js');
+            Component.initialize('testComponent', 
+                'spec/components/testComponent.html',
                 TestComponent)
                 .then((prototype) => {
                     Component.instance(document.getElementById('container'), 
@@ -141,8 +151,9 @@ describe('Component', () => {
                 });
         });
 
-    it('Should allow a model to be rendered in a template.', (done) => {
-        var TestComponent = require(__dirname + '/testComponent.js');
+    it('Should allow a single-value model to be rendered in a template.', 
+        (done) => {
+        var TestComponent = require(__dirname + '/components/testComponent.js');
         const component = new TestComponent(document
             .getElementById('container'));
         component.model.foo = 'bar';
@@ -151,12 +162,79 @@ describe('Component', () => {
                 document.querySelectorAll('test-component')[0].textContent;
             component.model.foo = 'yogurt';
             component.render();
+            // A lot of testing for yogurt...
             contents =   
                 document.querySelectorAll('test-component')[0].textContent;
             expect(contents).toBe('yogurt');
+
+            // Now, test out a function in the model...
+            let food = 'granola';
+            component.model.foo = function() {
+                // Something more complicated...
+                return food;
+            };
+            component.render();
+            contents =   
+                document.querySelectorAll('test-component')[0].textContent;
+            expect(contents).toBe('granola');
+            // The function and the template updates via an outside variable...
+            food = 'kale';
+            component.render();
+            contents =   
+                document.querySelectorAll('test-component')[0].textContent;
+            expect(contents).toBe('kale');
+
+            //Now, test an object...
             done();
         });
     });
+
+    it('Should allow a simple, single-value model to be rendered ' + 
+        'multiple places in a template.', () => {
+            const component = 
+                new Component(document.getElementById('container'), 'simpleModel',
+                'spec/components/simpleModel.html');
+            component.initialized.then(() => {
+                component.model.foo = 'yogurt';
+                component.render();
+                let contents1 =   
+                    document.querySelectorAll('simple-model>div')[0]
+                        .textContent.trim();
+                let contents2 =   
+                    document.querySelectorAll('simple-model>div>span')[0]
+                        .textContent.trim();
+                let contents3 =   
+                    document.querySelectorAll('simple-model>div>span')[1]
+                        .textContent.trim();
+                expect(contents1.startsWith('yogurt') && 
+                    contents1.match(/yogurt/g).length == 2).toBe(true);
+                expect(contents2).toBe('');
+                expect(contents3).toBe('yogurt');
+                component.model.foo = '';
+                component.model.bar = 'granola';
+                component.render();
+                contents1 =   
+                    document.querySelectorAll('simple-model>div')[0]
+                        .textContent.trim();
+                contents2 =   
+                    document.querySelectorAll('simple-model>div>span')[0]
+                        .textContent.trim();
+                contents3 =   
+                    document.querySelectorAll('simple-model>div>span')[1]
+                        .textContent.trim();
+                expect(contents1).toBe('granola');
+                expect(contents2).toBe('granola');
+                expect(contents3).toBe('');
+            });
+        });
+
+    it('Should allow a simple, multiple-value model to be rendered ' + 
+        'multiple places in a template.', () => {
+        });
+
+    it('Should allow a simple, multiple-value model to be rendered ' + 
+        'multiple places in a template.', () => {
+        });
 
     it('Should allow a component to be rendered with an undefined model or ' + 
         'a model that throws an error.', () => {

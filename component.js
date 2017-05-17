@@ -10,6 +10,10 @@ function render(model, templateLiteral) {
     for (let key in model) {
         let value;
         value = model[key];
+
+        if (typeof value == 'function') {
+            value = value();
+        }
         
         try {eval('var ' + key + ' = value; ');} catch(e) {}
     }
@@ -391,7 +395,7 @@ class Component {
      */
     saveModel() {
         let key, modelCopy;
-        modelCopy = this.model;
+        modelCopy = Object.assign({}, this.model);
         for (key in this.model) {
             if (typeof this.model[key] == 'function') {
                 try {
